@@ -1,0 +1,33 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "kleinanzeigen-mcp"
+version = "0.1.0"
+description = "MCP server for eBay Kleinanzeigen API"
+authors = [{ name = "Maxime", email = "maxime@example.com" }]
+dependencies = ["mcp", "httpx", "pydantic"]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-asyncio", "black", "ruff"]
+
+[project.scripts]
+kleinanzeigen-mcp = "kleinanzeigen_mcp.server:main"
+
+[tool.black]
+line-length = 88
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W"]
+ignore = []
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+packages = ["kleinanzeigen_mcp"]
