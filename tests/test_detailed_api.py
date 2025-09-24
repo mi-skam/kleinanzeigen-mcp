@@ -35,7 +35,7 @@ async def test_search_endpoint():
                 try:
                     data = response.json()
                     print(f"JSON data: {json.dumps(data, indent=2)[:1000]}...")
-                except:
+                except Exception:
                     print("Could not parse as JSON")
 
         except Exception as e:
