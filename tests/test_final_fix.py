@@ -34,6 +34,7 @@ async def test_final_fix():
                 "responses instead of 500 errors"
             )
             print(success_msg)
+
         elif "Failed to get listing details" in result[0].text:
             print("✅ Fix successful! Getting proper error handling")
         else:

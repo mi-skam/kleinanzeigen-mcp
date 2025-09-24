@@ -59,8 +59,10 @@ class KleinanzeigenClient:
                 )
             query_params["limit"] = str(limit)
 
-            # Add location if specified
-            if params.location:
+            # Add location if specified (prefer location_id over text location)
+            if params.location_id:
+                query_params["location_id"] = str(params.location_id)
+            elif params.location:
                 query_params["location"] = params.location
 
             # Add price filters if specified
@@ -72,6 +74,14 @@ class KleinanzeigenClient:
             # Add radius if specified
             if params.radius:
                 query_params["radius"] = str(params.radius)
+
+            # Add sort order if specified
+            if params.sort:
+                query_params["sort"] = params.sort
+
+            # Add category filter if specified
+            if params.category:
+                query_params["category"] = params.category
 
             url = f"{self.base_url}/ads/v1/kleinanzeigen/search"
             if query_params:
@@ -121,11 +131,12 @@ class KleinanzeigenClient:
                         # Convert shipping boolean to string
                         shipping_text = ""
                         if item.get("shipping"):
-                            if item["shipping"]:
-                                shipping_text = "Versand möglich"
-                            else:
-                                shipping_text = "Nur Abholung"
-
+                            shipping_text = (
+                                "Versand möglich"
+                                if item["shipping"]
+                                else "Nur Abholung"
+                            )
+                            
                         listing = Listing(
                             id=item.get("adid", ""),
                             title=item.get("title", ""),
@@ -158,7 +169,7 @@ class KleinanzeigenClient:
     async def get_listing_details(self, listing_id: str) -> ListingDetailResponse:
         """Get detailed information for a specific listing."""
         try:
-            url = f"{self.base_url}/ads/v1/kleinanzeigen/ad/{listing_id}"
+            url = f"{self.base_url}/ads/v1/kleinanzeigen/inserat?id={listing_id}"
             response = await self.client.get(url)
             response.raise_for_status()
 
@@ -199,10 +210,9 @@ class KleinanzeigenClient:
                 # Convert shipping boolean to string
                 shipping_text = ""
                 if item.get("shipping"):
-                    if item["shipping"]:
-                        shipping_text = "Versand möglich"
-                    else:
-                        shipping_text = "Nur Abholung"
+                    shipping_text = (
+                        "Versand möglich" if item["shipping"] else "Nur Abholung"
+                    )
 
                 listing = Listing(
                     id=item.get("adid", listing_id),

@@ -51,6 +51,7 @@ async def test_corrected_endpoints():
                                 print(f"Detail - Status code: {status_code}")
                                 response_preview = detail_response.text[:500]
                                 print(f"Detail - Response: {response_preview}...")
+
                 except Exception as e:
                     print(f"JSON parsing error: {e}")
 
