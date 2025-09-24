@@ -25,43 +25,18 @@ setup-env
 lint-fix
 ```
 
-### Option 2: Virtual Environment (venv)
+### Option 2: Standard Python Installation
 
 ```bash
 # Clone this repository
 git clone <repository-url>
 cd kleinanzeigen-mcp
 
-# Quick setup (automated)
-./setup-dev.sh
-
-# Manual setup
 python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-
-# Install dependencies
+source .venv/bin/activate
 pip install -r requirements.txt
-pip install -r requirements-dev.txt  # For development
+pip install -r requirements-dev.txt
 
-# Or install in development mode with all dependencies
-pip install -e ".[dev]"
-
-# Run linting
-./scripts/lint.sh --fix
-
-# Run the MCP server
-python -m src.kleinanzeigen_mcp.server
-```
-
-### Option 3: Standard Python Installation
-
-```bash
-# Clone this repository
-git clone <repository-url>
-cd kleinanzeigen-mcp
-
-# Install the package
-pip install -e .
 ```
 
 ## Usage
@@ -74,7 +49,7 @@ Add to your MCP client configuration:
 {
   "mcpServers": {
     "kleinanzeigen": {
-      "command": "python",
+      "command": "/path/to/.venv/bin/python",
       "args": ["-m", "kleinanzeigen_mcp.server"],
       "env": {
         "KLEINANZEIGEN_API_URL": "https://api.kleinanzeigen-agent.de",
@@ -148,40 +123,18 @@ Environment variables for configuration:
 
 ### Setup Development Environment
 
-#### Option 1: Virtual Environment (Recommended)
-
 ```bash
-# Create and activate virtual environment
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt -r requirements-dev.txt
-
-# Or install in development mode
+# Install with development dependencies
 pip install -e ".[dev]"
 
 # Run tests
 pytest
 
-# Lint and format code (auto-detects tools)
+# Lint and format code (auto-detects tools)****
 ./scripts/lint.sh --fix
 
 # Check code without fixing (CI mode)
 ./scripts/lint.sh --check-only
-```
-
-#### Option 2: Nix Environment
-
-```bash
-# Enter Nix development shell
-nix develop
-
-# Set up environment
-setup-env
-
-# Run linting
-lint-fix
 ```
 
 ### Project Structure
