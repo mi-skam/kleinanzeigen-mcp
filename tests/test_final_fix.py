@@ -3,9 +3,12 @@
 
 import asyncio
 
-from src.kleinanzeigen_mcp.server import _get_listing_details
+import pytest
+
+from kleinanzeigen_mcp.server import _get_listing_details
 
 
+@pytest.mark.asyncio
 async def test_final_fix():
     """Test that demonstrates the fix."""
     print("=== Testing get_listing_details fix ===")
@@ -30,7 +33,8 @@ async def test_final_fix():
             print("❌ Still getting 500 errors - fix did not work")
         elif "404" in result[0].text or "not found" in result[0].text.lower():
             print(
-                "✅ Fix successful! Now getting proper 404 responses instead of 500 errors"
+                "✅ Fix successful! Now getting proper 404 responses "
+                "instead of 500 errors"
             )
         elif "Failed to get listing details" in result[0].text:
             print("✅ Fix successful! Getting proper error handling")

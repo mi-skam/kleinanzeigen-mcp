@@ -3,9 +3,12 @@
 
 import asyncio
 
-from src.kleinanzeigen_mcp.client import KleinanzeigenClient
+import pytest
+
+from kleinanzeigen_mcp.client import KleinanzeigenClient
 
 
+@pytest.mark.asyncio
 async def test_various_ids():
     """Test various listing IDs to see if any exist."""
     # Try some different ID patterns that might exist
@@ -32,7 +35,7 @@ async def test_various_ids():
                 elif response.error:
                     print(f"  Error: {response.error}")
                 else:
-                    print(f"  No data returned")
+                    print("  No data returned")
 
             except Exception as e:
                 print(f"  Exception: {e}")

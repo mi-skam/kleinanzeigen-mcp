@@ -2,12 +2,14 @@
 """Test script to test search functionality and see if we can get listing IDs."""
 
 import asyncio
-import os
 
-from src.kleinanzeigen_mcp.client import KleinanzeigenClient
-from src.kleinanzeigen_mcp.models import SearchParams
+import pytest
+
+from kleinanzeigen_mcp.client import KleinanzeigenClient
+from kleinanzeigen_mcp.models import SearchParams
 
 
+@pytest.mark.asyncio
 async def test_search_listings():
     """Test the search_listings function to get valid listing IDs."""
     print("Testing search_listings to find valid listing IDs...")

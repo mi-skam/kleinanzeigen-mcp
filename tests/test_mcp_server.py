@@ -3,9 +3,12 @@
 
 import asyncio
 
-from src.kleinanzeigen_mcp.server import handle_call_tool
+import pytest
+
+from kleinanzeigen_mcp.server import handle_call_tool
 
 
+@pytest.mark.asyncio
 async def test_mcp_server():
     """Test the MCP server get_listing_details tool directly."""
     print("=== Testing MCP Server get_listing_details tool ===")

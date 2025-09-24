@@ -6,7 +6,14 @@ from urllib.parse import urlencode
 import httpx
 
 from .config import config
-from .models import Listing, ListingDetailResponse, SearchParams, SearchResponse
+from .models import (
+    CategoriesResponse,
+    Category,
+    Listing,
+    ListingDetailResponse,
+    SearchParams,
+    SearchResponse,
+)
 
 
 class KleinanzeigenClient:
@@ -19,7 +26,7 @@ class KleinanzeigenClient:
             "ads_key": config.api_key,
             "Content-Type": "application/json",
             "Origin": "https://kleinanzeigen-agent.de",
-            "User-Agent": "Mozilla/5.0 (compatible; KleinanzeigenMCP/1.0)"
+            "User-Agent": "Mozilla/5.0 (compatible; KleinanzeigenMCP/1.0)",
         }
         self.client = httpx.AsyncClient(
             timeout=config.timeout, follow_redirects=True, headers=headers
@@ -84,7 +91,9 @@ class KleinanzeigenClient:
                         location_text = ""
                         if item.get("location"):
                             loc = item["location"]
-                            location_text = f"{loc.get('city', '')}, {loc.get('state', '')}"
+                            city = loc.get("city", "")
+                            state = loc.get("state", "")
+                            location_text = f"{city}, {state}"
 
                         price_text = ""
                         if item.get("price"):
@@ -99,18 +108,24 @@ class KleinanzeigenClient:
                             seller_text = item["seller"].get("name", "")
 
                         # Convert to Kleinanzeigen URL format
-                        ad_url = f"https://www.kleinanzeigen.de/s-anzeige/{item.get('adid', '')}"
+                        adid = item.get("adid", "")
+                        ad_url = f"https://www.kleinanzeigen.de/s-anzeige/{adid}"
 
                         # Convert image URLs to ListingImage objects
                         image_objects = []
                         for img_url in item.get("images", []):
                             from .models import ListingImage
+
                             image_objects.append(ListingImage(url=img_url))
 
                         # Convert shipping boolean to string
                         shipping_text = ""
                         if item.get("shipping"):
-                            shipping_text = "Versand möglich" if item["shipping"] else "Nur Abholung"
+                            shipping_text = (
+                                "Versand möglich"
+                                if item["shipping"]
+                                else "Nur Abholung"
+                            )
 
                         listing = Listing(
                             id=item.get("adid", ""),
@@ -172,18 +187,22 @@ class KleinanzeigenClient:
                     seller_text = item["seller"].get("name", "")
 
                 # Convert to Kleinanzeigen URL format
-                ad_url = f"https://www.kleinanzeigen.de/s-anzeige/{item.get('adid', listing_id)}"
+                adid = item.get("adid", listing_id)
+                ad_url = f"https://www.kleinanzeigen.de/s-anzeige/{adid}"
 
                 # Convert image URLs to ListingImage objects
                 image_objects = []
                 for img_url in item.get("images", []):
                     from .models import ListingImage
+
                     image_objects.append(ListingImage(url=img_url))
 
                 # Convert shipping boolean to string
                 shipping_text = ""
                 if item.get("shipping"):
-                    shipping_text = "Versand möglich" if item["shipping"] else "Nur Abholung"
+                    shipping_text = (
+                        "Versand möglich" if item["shipping"] else "Nur Abholung"
+                    )
 
                 listing = Listing(
                     id=item.get("adid", listing_id),
@@ -208,5 +227,35 @@ class KleinanzeigenClient:
             return ListingDetailResponse(success=False, error=f"HTTP error: {str(e)}")
         except Exception as e:
             return ListingDetailResponse(
+                success=False, error=f"Unexpected error: {str(e)}"
+            )
+
+    async def get_categories(self) -> CategoriesResponse:
+        """Get all available categories."""
+        try:
+            url = f"{self.base_url}/ads/v1/kleinanzeigen/categories"
+            response = await self.client.get(url)
+            response.raise_for_status()
+
+            data = response.json()
+
+            if data.get("success") and data.get("categories"):
+                categories = []
+                for category_data in data["categories"]:
+                    category = Category(
+                        id=category_data.get("id"), name=category_data.get("name", "")
+                    )
+                    categories.append(category)
+
+                return CategoriesResponse(success=True, data=categories)
+            else:
+                return CategoriesResponse(
+                    success=False, error="Categories not found or invalid response"
+                )
+
+        except httpx.HTTPError as e:
+            return CategoriesResponse(success=False, error=f"HTTP error: {str(e)}")
+        except Exception as e:
+            return CategoriesResponse(
                 success=False, error=f"Unexpected error: {str(e)}"
             )

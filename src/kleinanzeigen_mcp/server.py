@@ -74,6 +74,14 @@ async def handle_list_tools() -> list[Tool]:
                 "required": ["listing_id"],
             },
         ),
+        Tool(
+            name="get_categories",
+            description="Get all available categories from eBay Kleinanzeigen",
+            inputSchema={
+                "type": "object",
+                "properties": {},
+            },
+        ),
     ]
 
 
@@ -85,6 +93,8 @@ async def handle_call_tool(name: str, arguments: dict | None) -> list[TextConten
             return await _search_listings(arguments or {})
         elif name == "get_listing_details":
             return await _get_listing_details(arguments or {})
+        elif name == "get_categories":
+            return await _get_categories(arguments or {})
         else:
             raise ValueError(f"Unknown tool: {name}")
 
@@ -182,6 +192,25 @@ async def _get_listing_details(arguments: dict[str, Any]) -> list[TextContent]:
                 TextContent(
                     type="text", text=f"Failed to get listing details: {error_msg}"
                 )
+            ]
+
+
+async def _get_categories(arguments: dict[str, Any]) -> list[TextContent]:
+    """Get all available categories."""
+    async with KleinanzeigenClient() as client:
+        response = await client.get_categories()
+
+        if response.success and response.data:
+            result_text = f"Found {len(response.data)} categories:\n\n"
+
+            for category in response.data:
+                result_text += f"**{category.name}** (ID: {category.id})\n"
+
+            return [TextContent(type="text", text=result_text)]
+        else:
+            error_msg = response.error or "Categories not found or API error"
+            return [
+                TextContent(type="text", text=f"Failed to get categories: {error_msg}")
             ]
 
 
