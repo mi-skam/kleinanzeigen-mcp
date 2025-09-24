@@ -9,6 +9,7 @@ from .config import config
 from .models import (
     CategoriesResponse,
     Category,
+    DocsResponse,
     Listing,
     ListingDetailResponse,
     Location,
@@ -317,3 +318,128 @@ class KleinanzeigenClient:
             return CategoriesResponse(
                 success=False, error=f"Unexpected error: {str(e)}"
             )
+
+    async def get_docs(self) -> DocsResponse:
+        """Get API documentation and available endpoints."""
+        try:
+            url = f"{self.base_url}/docs"
+            response = await self.client.get(url)
+            response.raise_for_status()
+
+            data = response.json()
+
+            if data.get("success"):
+                if data.get("data"):
+                    docs_content = data["data"]
+                    if isinstance(docs_content, dict):
+                        formatted_docs = self._format_docs(docs_content)
+                        return DocsResponse(success=True, data=formatted_docs)
+                    else:
+                        return DocsResponse(success=True, data=str(docs_content))
+                else:
+                    # Handle case where success=true but no data
+                    return DocsResponse(
+                        success=True, data="No documentation data available"
+                    )
+            else:
+                return DocsResponse(success=False, error="API returned success=false")
+
+        except httpx.HTTPError as e:
+            # If remote docs fail, provide fallback documentation
+            fallback_docs = self._get_fallback_docs()
+            return DocsResponse(
+                success=True,
+                data=f"Remote documentation unavailable ({str(e)})\n\n{fallback_docs}",
+            )
+        except Exception as e:
+            return DocsResponse(success=False, error=f"Unexpected error: {str(e)}")
+
+    def _get_fallback_docs(self) -> str:
+        """Provide fallback documentation when remote docs are unavailable."""
+        return """# Kleinanzeigen API Documentation
+
+## API Response Format
+
+All API endpoints return responses in the following JSON format:
+
+```json
+{
+  "success": true,
+  "data": [
+    ...
+  ]
+}
+```
+
+## Available Endpoints
+
+### Search Listings
+- **Endpoint**: `/ads/v1/kleinanzeigen/search`
+- **Method**: GET
+- **Description**: Search for listings with various filters
+- **Parameters**: query, location, radius, min_price, max_price, sort, category, etc.
+
+### Get Listing Details
+- **Endpoint**: `/ads/v1/kleinanzeigen/inserat`
+- **Method**: GET
+- **Description**: Get detailed information for a specific listing
+- **Parameters**: id (required)
+
+### Search Locations
+- **Endpoint**: `/ads/v1/kleinanzeigen/locations`
+- **Method**: GET
+- **Description**: Search for locations by city, postal code, or state
+- **Parameters**: query (required), limit
+
+### Get Categories
+- **Endpoint**: `/ads/v1/kleinanzeigen/categories`
+- **Method**: GET
+- **Description**: Get all available categories
+
+## Documentation
+
+API documentation is available at http://localhost:8000/docs when running locally."""
+
+    def _format_docs(self, docs_data: dict) -> str:
+        """Format documentation data into readable text."""
+        formatted = "# Kleinanzeigen API Documentation\n\n"
+
+        if "endpoints" in docs_data:
+            formatted += "## Available Endpoints\n\n"
+            for endpoint in docs_data["endpoints"]:
+                method = endpoint.get("method", "GET")
+                path = endpoint.get("path", "")
+                formatted += f"### {method} {path}\n"
+                if endpoint.get("description"):
+                    formatted += f"{endpoint['description']}\n\n"
+
+                if endpoint.get("parameters"):
+                    formatted += "**Parameters:**\n"
+                    for param in endpoint["parameters"]:
+                        name = param.get("name", "")
+                        param_type = param.get("type", "")
+                        formatted += f"- `{name}` ({param_type})"
+                        if param.get("required"):
+                            formatted += " *required*"
+                        if param.get("description"):
+                            formatted += f": {param['description']}"
+                        formatted += "\n"
+                    formatted += "\n"
+
+                if endpoint.get("example_response"):
+                    formatted += "**Example Response:**\n"
+                    formatted += f"```json\n{endpoint['example_response']}\n```\n\n"
+
+                formatted += "---\n\n"
+
+        if "info" in docs_data:
+            info = docs_data["info"]
+            formatted += "## API Information\n\n"
+            if info.get("version"):
+                formatted += f"**Version:** {info['version']}\n"
+            if info.get("description"):
+                formatted += f"**Description:** {info['description']}\n"
+            if info.get("base_url"):
+                formatted += f"**Base URL:** {info['base_url']}\n"
+
+        return formatted
