@@ -31,3 +31,9 @@ warn_return_any = true
 warn_unused_configs = true
 ignore_missing_imports = true
 packages = ["kleinanzeigen_mcp"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.2",
+    "pytest-asyncio>=1.2.0",
+]

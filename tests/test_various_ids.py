@@ -32,7 +32,7 @@ async def test_various_ids():
                 elif response.error:
                     print(f"  Error: {response.error}")
                 else:
-                    print(f"  No data returned")
+                    print("  No data returned")
 
             except Exception as e:
                 print(f"  Exception: {e}")

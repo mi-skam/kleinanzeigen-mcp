@@ -6,7 +6,14 @@ from urllib.parse import urlencode
 import httpx
 
 from .config import config
-from .models import Listing, ListingDetailResponse, SearchParams, SearchResponse
+from .models import (
+    Listing,
+    ListingDetailResponse,
+    Location,
+    LocationsResponse,
+    SearchParams,
+    SearchResponse,
+)
 
 
 class KleinanzeigenClient:
@@ -19,7 +26,7 @@ class KleinanzeigenClient:
             "ads_key": config.api_key,
             "Content-Type": "application/json",
             "Origin": "https://kleinanzeigen-agent.de",
-            "User-Agent": "Mozilla/5.0 (compatible; KleinanzeigenMCP/1.0)"
+            "User-Agent": "Mozilla/5.0 (compatible; KleinanzeigenMCP/1.0)",
         }
         self.client = httpx.AsyncClient(
             timeout=config.timeout, follow_redirects=True, headers=headers
@@ -84,7 +91,9 @@ class KleinanzeigenClient:
                         location_text = ""
                         if item.get("location"):
                             loc = item["location"]
-                            location_text = f"{loc.get('city', '')}, {loc.get('state', '')}"
+                            city = loc.get("city", "")
+                            state = loc.get("state", "")
+                            location_text = f"{city}, {state}"
 
                         price_text = ""
                         if item.get("price"):
@@ -99,18 +108,23 @@ class KleinanzeigenClient:
                             seller_text = item["seller"].get("name", "")
 
                         # Convert to Kleinanzeigen URL format
-                        ad_url = f"https://www.kleinanzeigen.de/s-anzeige/{item.get('adid', '')}"
+                        adid = item.get("adid", "")
+                        ad_url = f"https://www.kleinanzeigen.de/s-anzeige/{adid}"
 
                         # Convert image URLs to ListingImage objects
                         image_objects = []
                         for img_url in item.get("images", []):
                             from .models import ListingImage
+
                             image_objects.append(ListingImage(url=img_url))
 
                         # Convert shipping boolean to string
                         shipping_text = ""
                         if item.get("shipping"):
-                            shipping_text = "Versand möglich" if item["shipping"] else "Nur Abholung"
+                            if item["shipping"]:
+                                shipping_text = "Versand möglich"
+                            else:
+                                shipping_text = "Nur Abholung"
 
                         listing = Listing(
                             id=item.get("adid", ""),
@@ -172,18 +186,23 @@ class KleinanzeigenClient:
                     seller_text = item["seller"].get("name", "")
 
                 # Convert to Kleinanzeigen URL format
-                ad_url = f"https://www.kleinanzeigen.de/s-anzeige/{item.get('adid', listing_id)}"
+                adid = item.get("adid", listing_id)
+                ad_url = f"https://www.kleinanzeigen.de/s-anzeige/{adid}"
 
                 # Convert image URLs to ListingImage objects
                 image_objects = []
                 for img_url in item.get("images", []):
                     from .models import ListingImage
+
                     image_objects.append(ListingImage(url=img_url))
 
                 # Convert shipping boolean to string
                 shipping_text = ""
                 if item.get("shipping"):
-                    shipping_text = "Versand möglich" if item["shipping"] else "Nur Abholung"
+                    if item["shipping"]:
+                        shipping_text = "Versand möglich"
+                    else:
+                        shipping_text = "Nur Abholung"
 
                 listing = Listing(
                     id=item.get("adid", listing_id),
@@ -210,3 +229,50 @@ class KleinanzeigenClient:
             return ListingDetailResponse(
                 success=False, error=f"Unexpected error: {str(e)}"
             )
+
+    async def search_locations(
+        self, query: str, limit: Optional[int] = None
+    ) -> LocationsResponse:
+        """Search for locations by query."""
+        try:
+            query_params = {"query": query}
+            if limit:
+                query_params["limit"] = str(limit)
+
+            url = f"{self.base_url}/ads/v1/kleinanzeigen/locations"
+            if query_params:
+                url += f"?{urlencode(query_params)}"
+
+            response = await self.client.get(url)
+            response.raise_for_status()
+
+            data = response.json()
+
+            locations = []
+            has_success = data.get("success")
+            has_data = data.get("data")
+            has_locations = has_data and data["data"].get("locations")
+            if has_success and has_data and has_locations:
+                for item in data["data"]["locations"]:
+                    try:
+                        location = Location(
+                            id=str(item.get("id", "")),
+                            city=item.get("city", ""),
+                            state=item.get("state", ""),
+                            zip=item.get("zip", ""),
+                            latitude=float(item.get("latitude", 0.0)),
+                            longitude=float(item.get("longitude", 0.0)),
+                        )
+                        locations.append(location)
+                    except (ValueError, TypeError) as e:
+                        print(f"Error processing location item: {e}")
+
+            return LocationsResponse(
+                success=data.get("success", False),
+                data=locations,
+            )
+
+        except httpx.HTTPError as e:
+            return LocationsResponse(success=False, error=f"HTTP error: {str(e)}")
+        except Exception as e:
+            return LocationsResponse(success=False, error=f"Unexpected error: {str(e)}")
