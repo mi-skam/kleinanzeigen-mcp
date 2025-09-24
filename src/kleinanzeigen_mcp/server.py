@@ -57,6 +57,25 @@ async def handle_list_tools() -> list[Tool]:
                         "maximum": 20,
                         "default": 1,
                     },
+                    "sort": {
+                        "type": "string",
+                        "description": (
+                            "Sort order for results "
+                            "(newest, oldest, price_asc, price_desc)"
+                        ),
+                        "default": "newest",
+                    },
+                    "category": {
+                        "type": "string",
+                        "description": "Comma-separated category IDs to filter by",
+                    },
+                    "location_id": {
+                        "type": "integer",
+                        "description": (
+                            "Location ID for radius-based search "
+                            "(alternative to text location)"
+                        ),
+                    },
                 },
             },
         ),
@@ -72,6 +91,26 @@ async def handle_list_tools() -> list[Tool]:
                     }
                 },
                 "required": ["listing_id"],
+            },
+        ),
+        Tool(
+            name="search_locations",
+            description="Search for locations by city, postal code, or state",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Search term for city, postal code, or state",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Maximum number of results (default: 20)",
+                        "minimum": 1,
+                        "maximum": 100,
+                    },
+                },
+                "required": ["query"],
             },
         ),
         Tool(
@@ -93,6 +132,8 @@ async def handle_call_tool(name: str, arguments: dict | None) -> list[TextConten
             return await _search_listings(arguments or {})
         elif name == "get_listing_details":
             return await _get_listing_details(arguments or {})
+        elif name == "search_locations":
+            return await _search_locations(arguments or {})
         elif name == "get_categories":
             return await _get_categories(arguments or {})
         else:
@@ -107,9 +148,12 @@ async def _search_listings(arguments: dict[str, Any]) -> list[TextContent]:
     params = SearchParams(
         query=arguments.get("query"),
         location=arguments.get("location"),
+        location_id=arguments.get("location_id"),
         radius=arguments.get("radius"),
         min_price=arguments.get("min_price"),
         max_price=arguments.get("max_price"),
+        sort=arguments.get("sort", "newest"),
+        category=arguments.get("category"),
         page_count=arguments.get("page_count", 1),
     )
 
@@ -193,6 +237,37 @@ async def _get_listing_details(arguments: dict[str, Any]) -> list[TextContent]:
                     type="text", text=f"Failed to get listing details: {error_msg}"
                 )
             ]
+
+
+async def _search_locations(arguments: dict[str, Any]) -> list[TextContent]:
+    """Search for locations."""
+    query = arguments.get("query")
+    if not query:
+        raise ValueError("query is required")
+
+    limit = arguments.get("limit")
+
+    async with KleinanzeigenClient() as client:
+        response = await client.search_locations(query, limit)
+
+        if response.success:
+            if not response.data:
+                return [TextContent(type="text", text="No locations found")]
+
+            result_text = f"Found {len(response.data)} locations:\n\n"
+
+            for i, location in enumerate(response.data, 1):
+                result_text += f"{i}. **{location.city}**, {location.state}\n"
+                result_text += f"   📍 Postal Code: {location.zip}\n"
+                coords = f"{location.latitude}, {location.longitude}"
+                result_text += f"   🌐 Coordinates: {coords}\n"
+                result_text += f"   🆔 Location ID: {location.id}\n"
+                result_text += "\n"
+
+            return [TextContent(type="text", text=result_text)]
+        else:
+            error_msg = response.error or "Location search failed"
+            return [TextContent(type="text", text=f"Search failed: {error_msg}")]
 
 
 async def _get_categories(arguments: dict[str, Any]) -> list[TextContent]:

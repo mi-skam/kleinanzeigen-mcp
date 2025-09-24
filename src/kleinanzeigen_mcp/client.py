@@ -11,6 +11,8 @@ from .models import (
     Category,
     Listing,
     ListingDetailResponse,
+    Location,
+    LocationsResponse,
     SearchParams,
     SearchResponse,
 )
@@ -59,8 +61,10 @@ class KleinanzeigenClient:
                 )
             query_params["limit"] = str(limit)
 
-            # Add location if specified
-            if params.location:
+            # Add location if specified (prefer location_id over text location)
+            if params.location_id:
+                query_params["location_id"] = str(params.location_id)
+            elif params.location:
                 query_params["location"] = params.location
 
             # Add price filters if specified
@@ -72,6 +76,14 @@ class KleinanzeigenClient:
             # Add radius if specified
             if params.radius:
                 query_params["radius"] = str(params.radius)
+
+            # Add sort order if specified
+            if params.sort:
+                query_params["sort"] = params.sort
+
+            # Add category filter if specified
+            if params.category:
+                query_params["category"] = params.category
 
             url = f"{self.base_url}/ads/v1/kleinanzeigen/search"
             if query_params:
@@ -126,7 +138,6 @@ class KleinanzeigenClient:
                                 if item["shipping"]
                                 else "Nur Abholung"
                             )
-
                         listing = Listing(
                             id=item.get("adid", ""),
                             title=item.get("title", ""),
@@ -159,7 +170,7 @@ class KleinanzeigenClient:
     async def get_listing_details(self, listing_id: str) -> ListingDetailResponse:
         """Get detailed information for a specific listing."""
         try:
-            url = f"{self.base_url}/ads/v1/kleinanzeigen/ad/{listing_id}"
+            url = f"{self.base_url}/ads/v1/kleinanzeigen/inserat?id={listing_id}"
             response = await self.client.get(url)
             response.raise_for_status()
 
@@ -229,6 +240,53 @@ class KleinanzeigenClient:
             return ListingDetailResponse(
                 success=False, error=f"Unexpected error: {str(e)}"
             )
+
+    async def search_locations(
+        self, query: str, limit: Optional[int] = None
+    ) -> LocationsResponse:
+        """Search for locations by query."""
+        try:
+            query_params = {"query": query}
+            if limit:
+                query_params["limit"] = str(limit)
+
+            url = f"{self.base_url}/ads/v1/kleinanzeigen/locations"
+            if query_params:
+                url += f"?{urlencode(query_params)}"
+
+            response = await self.client.get(url)
+            response.raise_for_status()
+
+            data = response.json()
+
+            locations = []
+            has_success = data.get("success")
+            has_data = data.get("data")
+            has_locations = has_data and data["data"].get("locations")
+            if has_success and has_data and has_locations:
+                for item in data["data"]["locations"]:
+                    try:
+                        location = Location(
+                            id=str(item.get("id", "")),
+                            city=item.get("city", ""),
+                            state=item.get("state", ""),
+                            zip=item.get("zip", ""),
+                            latitude=float(item.get("latitude", 0.0)),
+                            longitude=float(item.get("longitude", 0.0)),
+                        )
+                        locations.append(location)
+                    except (ValueError, TypeError) as e:
+                        print(f"Error processing location item: {e}")
+
+            return LocationsResponse(
+                success=data.get("success", False),
+                data=locations,
+            )
+
+        except httpx.HTTPError as e:
+            return LocationsResponse(success=False, error=f"HTTP error: {str(e)}")
+        except Exception as e:
+            return LocationsResponse(success=False, error=f"Unexpected error: {str(e)}")
 
     async def get_categories(self) -> CategoriesResponse:
         """Get all available categories."""

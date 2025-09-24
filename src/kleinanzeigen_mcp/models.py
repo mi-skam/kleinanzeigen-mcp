@@ -32,9 +32,12 @@ class SearchParams(BaseModel):
 
     query: Optional[str] = None
     location: Optional[str] = None
+    location_id: Optional[int] = None
     radius: Optional[int] = None
     min_price: Optional[int] = None
     max_price: Optional[int] = None
+    sort: Optional[str] = "newest"
+    category: Optional[str] = None
     page_count: int = 1
 
 
@@ -45,6 +48,25 @@ class SearchResponse(BaseModel):
     data: List[Listing]
     total_results: Optional[int] = None
     page: int = 1
+
+
+class Location(BaseModel):
+    """Location model for Kleinanzeigen locations."""
+
+    id: str
+    city: str
+    state: str
+    zip: str
+    latitude: float
+    longitude: float
+
+
+class LocationsResponse(BaseModel):
+    """Response from locations search operation."""
+
+    success: bool
+    data: List[Location] = []
+    error: Optional[str] = None
 
 
 class ListingDetailResponse(BaseModel):

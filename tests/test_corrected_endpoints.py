@@ -51,8 +51,8 @@ async def test_corrected_endpoints():
                                 detail_response = await client.get(detail_url)
                                 status_code = detail_response.status_code
                                 print(f"Detail - Status code: {status_code}")
-                                response_text = detail_response.text[:500]
-                                print(f"Detail - Response: {response_text}...")
+                                response_preview = detail_response.text[:500]
+                                print(f"Detail - Response: {response_preview}...")
                 except Exception as e:
                     print(f"JSON parsing error: {e}")
 
@@ -62,3 +62,4 @@ async def test_corrected_endpoints():
 
 if __name__ == "__main__":
     asyncio.run(test_corrected_endpoints())
+
