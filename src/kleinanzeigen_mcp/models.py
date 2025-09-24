@@ -32,9 +32,12 @@ class SearchParams(BaseModel):
 
     query: Optional[str] = None
     location: Optional[str] = None
+    location_id: Optional[int] = None
     radius: Optional[int] = None
     min_price: Optional[int] = None
     max_price: Optional[int] = None
+    sort: Optional[str] = "newest"
+    category: Optional[str] = None
     page_count: int = 1
 
 

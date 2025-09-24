@@ -57,6 +57,25 @@ async def handle_list_tools() -> list[Tool]:
                         "maximum": 20,
                         "default": 1,
                     },
+                    "sort": {
+                        "type": "string",
+                        "description": (
+                            "Sort order for results "
+                            "(newest, oldest, price_asc, price_desc)"
+                        ),
+                        "default": "newest",
+                    },
+                    "category": {
+                        "type": "string",
+                        "description": "Comma-separated category IDs to filter by",
+                    },
+                    "location_id": {
+                        "type": "integer",
+                        "description": (
+                            "Location ID for radius-based search "
+                            "(alternative to text location)"
+                        ),
+                    },
                 },
             },
         ),
@@ -97,9 +116,12 @@ async def _search_listings(arguments: dict[str, Any]) -> list[TextContent]:
     params = SearchParams(
         query=arguments.get("query"),
         location=arguments.get("location"),
+        location_id=arguments.get("location_id"),
         radius=arguments.get("radius"),
         min_price=arguments.get("min_price"),
         max_price=arguments.get("max_price"),
+        sort=arguments.get("sort", "newest"),
+        category=arguments.get("category"),
         page_count=arguments.get("page_count", 1),
     )
 

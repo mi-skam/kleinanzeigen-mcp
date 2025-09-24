@@ -19,7 +19,7 @@ class KleinanzeigenClient:
             "ads_key": config.api_key,
             "Content-Type": "application/json",
             "Origin": "https://kleinanzeigen-agent.de",
-            "User-Agent": "Mozilla/5.0 (compatible; KleinanzeigenMCP/1.0)"
+            "User-Agent": "Mozilla/5.0 (compatible; KleinanzeigenMCP/1.0)",
         }
         self.client = httpx.AsyncClient(
             timeout=config.timeout, follow_redirects=True, headers=headers
@@ -52,8 +52,10 @@ class KleinanzeigenClient:
                 )
             query_params["limit"] = str(limit)
 
-            # Add location if specified
-            if params.location:
+            # Add location if specified (prefer location_id over text location)
+            if params.location_id:
+                query_params["location_id"] = str(params.location_id)
+            elif params.location:
                 query_params["location"] = params.location
 
             # Add price filters if specified
@@ -65,6 +67,14 @@ class KleinanzeigenClient:
             # Add radius if specified
             if params.radius:
                 query_params["radius"] = str(params.radius)
+
+            # Add sort order if specified
+            if params.sort:
+                query_params["sort"] = params.sort
+
+            # Add category filter if specified
+            if params.category:
+                query_params["category"] = params.category
 
             url = f"{self.base_url}/ads/v1/kleinanzeigen/search"
             if query_params:
@@ -84,7 +94,9 @@ class KleinanzeigenClient:
                         location_text = ""
                         if item.get("location"):
                             loc = item["location"]
-                            location_text = f"{loc.get('city', '')}, {loc.get('state', '')}"
+                            city = loc.get("city", "")
+                            state = loc.get("state", "")
+                            location_text = f"{city}, {state}"
 
                         price_text = ""
                         if item.get("price"):
@@ -99,18 +111,24 @@ class KleinanzeigenClient:
                             seller_text = item["seller"].get("name", "")
 
                         # Convert to Kleinanzeigen URL format
-                        ad_url = f"https://www.kleinanzeigen.de/s-anzeige/{item.get('adid', '')}"
+                        adid = item.get("adid", "")
+                        ad_url = f"https://www.kleinanzeigen.de/s-anzeige/{adid}"
 
                         # Convert image URLs to ListingImage objects
                         image_objects = []
                         for img_url in item.get("images", []):
                             from .models import ListingImage
+
                             image_objects.append(ListingImage(url=img_url))
 
                         # Convert shipping boolean to string
                         shipping_text = ""
                         if item.get("shipping"):
-                            shipping_text = "Versand möglich" if item["shipping"] else "Nur Abholung"
+                            shipping_text = (
+                                "Versand möglich"
+                                if item["shipping"]
+                                else "Nur Abholung"
+                            )
 
                         listing = Listing(
                             id=item.get("adid", ""),
@@ -172,18 +190,22 @@ class KleinanzeigenClient:
                     seller_text = item["seller"].get("name", "")
 
                 # Convert to Kleinanzeigen URL format
-                ad_url = f"https://www.kleinanzeigen.de/s-anzeige/{item.get('adid', listing_id)}"
+                adid = item.get("adid", listing_id)
+                ad_url = f"https://www.kleinanzeigen.de/s-anzeige/{adid}"
 
                 # Convert image URLs to ListingImage objects
                 image_objects = []
                 for img_url in item.get("images", []):
                     from .models import ListingImage
+
                     image_objects.append(ListingImage(url=img_url))
 
                 # Convert shipping boolean to string
                 shipping_text = ""
                 if item.get("shipping"):
-                    shipping_text = "Versand möglich" if item["shipping"] else "Nur Abholung"
+                    shipping_text = (
+                        "Versand möglich" if item["shipping"] else "Nur Abholung"
+                    )
 
                 listing = Listing(
                     id=item.get("adid", listing_id),
