@@ -49,7 +49,6 @@ coverage.xml
 *.cover
 *.py,cover
 .hypothesis/
-test_mcp_server.py
 
 # Logs
 *.log
