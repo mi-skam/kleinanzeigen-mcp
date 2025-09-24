@@ -111,6 +111,7 @@ class KleinanzeigenClient:
                             seller_text = item["seller"].get("name", "")
 
                         # Convert to Kleinanzeigen URL format
+
                         adid = item.get("adid", "")
                         ad_url = f"https://www.kleinanzeigen.de/s-anzeige/{adid}"
 
@@ -162,7 +163,7 @@ class KleinanzeigenClient:
     async def get_listing_details(self, listing_id: str) -> ListingDetailResponse:
         """Get detailed information for a specific listing."""
         try:
-            url = f"{self.base_url}/ads/v1/kleinanzeigen/ad/{listing_id}"
+            url = f"{self.base_url}/ads/v1/kleinanzeigen/inserat?id={listing_id}"
             response = await self.client.get(url)
             response.raise_for_status()
 
