@@ -15,7 +15,12 @@ class KleinanzeigenClient:
     def __init__(self, base_url: Optional[str] = None):
         """Initialize client with base URL."""
         self.base_url = (base_url or config.api_base_url).rstrip("/")
-        headers = {"ads_key": config.api_key, "Content-Type": "application/json"}
+        headers = {
+            "ads_key": config.api_key,
+            "Content-Type": "application/json",
+            "Origin": "https://kleinanzeigen-agent.de",
+            "User-Agent": "Mozilla/5.0 (compatible; KleinanzeigenMCP/1.0)"
+        }
         self.client = httpx.AsyncClient(
             timeout=config.timeout, follow_redirects=True, headers=headers
         )
