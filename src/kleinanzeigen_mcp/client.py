@@ -6,7 +6,14 @@ from urllib.parse import urlencode
 import httpx
 
 from .config import config
-from .models import Listing, ListingDetailResponse, SearchParams, SearchResponse
+from .models import (
+    Listing,
+    ListingDetailResponse,
+    Location,
+    LocationsResponse,
+    SearchParams,
+    SearchResponse,
+)
 
 
 class KleinanzeigenClient:
@@ -111,7 +118,6 @@ class KleinanzeigenClient:
                             seller_text = item["seller"].get("name", "")
 
                         # Convert to Kleinanzeigen URL format
-
                         adid = item.get("adid", "")
                         ad_url = f"https://www.kleinanzeigen.de/s-anzeige/{adid}"
 
@@ -130,7 +136,7 @@ class KleinanzeigenClient:
                                 if item["shipping"]
                                 else "Nur Abholung"
                             )
-
+                            
                         listing = Listing(
                             id=item.get("adid", ""),
                             title=item.get("title", ""),
@@ -233,3 +239,50 @@ class KleinanzeigenClient:
             return ListingDetailResponse(
                 success=False, error=f"Unexpected error: {str(e)}"
             )
+
+    async def search_locations(
+        self, query: str, limit: Optional[int] = None
+    ) -> LocationsResponse:
+        """Search for locations by query."""
+        try:
+            query_params = {"query": query}
+            if limit:
+                query_params["limit"] = str(limit)
+
+            url = f"{self.base_url}/ads/v1/kleinanzeigen/locations"
+            if query_params:
+                url += f"?{urlencode(query_params)}"
+
+            response = await self.client.get(url)
+            response.raise_for_status()
+
+            data = response.json()
+
+            locations = []
+            has_success = data.get("success")
+            has_data = data.get("data")
+            has_locations = has_data and data["data"].get("locations")
+            if has_success and has_data and has_locations:
+                for item in data["data"]["locations"]:
+                    try:
+                        location = Location(
+                            id=str(item.get("id", "")),
+                            city=item.get("city", ""),
+                            state=item.get("state", ""),
+                            zip=item.get("zip", ""),
+                            latitude=float(item.get("latitude", 0.0)),
+                            longitude=float(item.get("longitude", 0.0)),
+                        )
+                        locations.append(location)
+                    except (ValueError, TypeError) as e:
+                        print(f"Error processing location item: {e}")
+
+            return LocationsResponse(
+                success=data.get("success", False),
+                data=locations,
+            )
+
+        except httpx.HTTPError as e:
+            return LocationsResponse(success=False, error=f"HTTP error: {str(e)}")
+        except Exception as e:
+            return LocationsResponse(success=False, error=f"Unexpected error: {str(e)}")

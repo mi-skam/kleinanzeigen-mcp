@@ -50,6 +50,25 @@ class SearchResponse(BaseModel):
     page: int = 1
 
 
+class Location(BaseModel):
+    """Location model for Kleinanzeigen locations."""
+
+    id: str
+    city: str
+    state: str
+    zip: str
+    latitude: float
+    longitude: float
+
+
+class LocationsResponse(BaseModel):
+    """Response from locations search operation."""
+
+    success: bool
+    data: List[Location] = []
+    error: Optional[str] = None
+
+
 class ListingDetailResponse(BaseModel):
     """Response from listing detail operation."""
 
