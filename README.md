@@ -25,7 +25,35 @@ setup-env
 lint-fix
 ```
 
-### Option 2: Standard Python Installation
+### Option 2: Virtual Environment (venv)
+
+```bash
+# Clone this repository
+git clone <repository-url>
+cd kleinanzeigen-mcp
+
+# Quick setup (automated)
+./setup-dev.sh
+
+# Manual setup
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+pip install -r requirements-dev.txt  # For development
+
+# Or install in development mode with all dependencies
+pip install -e ".[dev]"
+
+# Run linting
+./scripts/lint.sh --fix
+
+# Run the MCP server
+python -m src.kleinanzeigen_mcp.server
+```
+
+### Option 3: Standard Python Installation
 
 ```bash
 # Clone this repository
@@ -120,8 +148,17 @@ Environment variables for configuration:
 
 ### Setup Development Environment
 
+#### Option 1: Virtual Environment (Recommended)
+
 ```bash
-# Install with development dependencies
+# Create and activate virtual environment
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt -r requirements-dev.txt
+
+# Or install in development mode
 pip install -e ".[dev]"
 
 # Run tests
@@ -132,6 +169,19 @@ pytest
 
 # Check code without fixing (CI mode)
 ./scripts/lint.sh --check-only
+```
+
+#### Option 2: Nix Environment
+
+```bash
+# Enter Nix development shell
+nix develop
+
+# Set up environment
+setup-env
+
+# Run linting
+lint-fix
 ```
 
 ### Project Structure
