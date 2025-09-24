@@ -29,9 +29,11 @@ async def test_final_fix():
         if "500" in result[0].text:
             print("❌ Still getting 500 errors - fix did not work")
         elif "404" in result[0].text or "not found" in result[0].text.lower():
-            print(
-                "✅ Fix successful! Now getting proper 404 responses instead of 500 errors"
+            msg = (
+                "✅ Fix successful! Now getting proper 404 responses "
+                "instead of 500 errors"
             )
+            print(msg)
         elif "Failed to get listing details" in result[0].text:
             print("✅ Fix successful! Getting proper error handling")
         else:

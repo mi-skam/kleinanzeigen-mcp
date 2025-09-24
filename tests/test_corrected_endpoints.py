@@ -47,12 +47,10 @@ async def test_corrected_endpoints():
                                 print(f"\nTesting detail URL: {detail_url}")
 
                                 detail_response = await client.get(detail_url)
-                                print(
-                                    f"Detail - Status code: {detail_response.status_code}"
-                                )
-                                print(
-                                    f"Detail - Response: {detail_response.text[:500]}..."
-                                )
+                                status_code = detail_response.status_code
+                                print(f"Detail - Status code: {status_code}")
+                                response_text = detail_response.text[:500]
+                                print(f"Detail - Response: {response_text}...")
                 except Exception as e:
                     print(f"JSON parsing error: {e}")
 

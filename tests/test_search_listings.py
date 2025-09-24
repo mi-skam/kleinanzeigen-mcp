@@ -2,7 +2,6 @@
 """Test script to test search functionality and see if we can get listing IDs."""
 
 import asyncio
-import os
 
 from src.kleinanzeigen_mcp.client import KleinanzeigenClient
 from src.kleinanzeigen_mcp.models import SearchParams
