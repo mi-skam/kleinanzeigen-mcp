@@ -7,6 +7,8 @@ import httpx
 
 from .config import config
 from .models import (
+    CategoriesResponse,
+    Category,
     Listing,
     ListingDetailResponse,
     Location,
@@ -136,7 +138,6 @@ class KleinanzeigenClient:
                                 if item["shipping"]
                                 else "Nur Abholung"
                             )
-                            
                         listing = Listing(
                             id=item.get("adid", ""),
                             title=item.get("title", ""),
@@ -286,3 +287,33 @@ class KleinanzeigenClient:
             return LocationsResponse(success=False, error=f"HTTP error: {str(e)}")
         except Exception as e:
             return LocationsResponse(success=False, error=f"Unexpected error: {str(e)}")
+
+    async def get_categories(self) -> CategoriesResponse:
+        """Get all available categories."""
+        try:
+            url = f"{self.base_url}/ads/v1/kleinanzeigen/categories"
+            response = await self.client.get(url)
+            response.raise_for_status()
+
+            data = response.json()
+
+            if data.get("success") and data.get("categories"):
+                categories = []
+                for category_data in data["categories"]:
+                    category = Category(
+                        id=category_data.get("id"), name=category_data.get("name", "")
+                    )
+                    categories.append(category)
+
+                return CategoriesResponse(success=True, data=categories)
+            else:
+                return CategoriesResponse(
+                    success=False, error="Categories not found or invalid response"
+                )
+
+        except httpx.HTTPError as e:
+            return CategoriesResponse(success=False, error=f"HTTP error: {str(e)}")
+        except Exception as e:
+            return CategoriesResponse(
+                success=False, error=f"Unexpected error: {str(e)}"
+            )

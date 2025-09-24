@@ -4,9 +4,12 @@
 import asyncio
 import os
 
-from src.kleinanzeigen_mcp.client import KleinanzeigenClient
+import pytest
+
+from kleinanzeigen_mcp.client import KleinanzeigenClient
 
 
+@pytest.mark.asyncio
 async def test_get_listing_details():
     """Test the get_listing_details function with a sample ID."""
     # Set up environment variables if needed

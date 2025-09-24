@@ -75,3 +75,18 @@ class ListingDetailResponse(BaseModel):
     success: bool
     data: Optional[Listing] = None
     error: Optional[str] = None
+
+
+class Category(BaseModel):
+    """Kleinanzeigen category model."""
+
+    id: int
+    name: str
+
+
+class CategoriesResponse(BaseModel):
+    """Response from categories operation."""
+
+    success: bool
+    data: List[Category] = []
+    error: Optional[str] = None

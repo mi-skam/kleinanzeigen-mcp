@@ -3,9 +3,12 @@
 
 import asyncio
 
-from src.kleinanzeigen_mcp.server import _get_listing_details
+import pytest
+
+from kleinanzeigen_mcp.server import _get_listing_details
 
 
+@pytest.mark.asyncio
 async def test_final_fix():
     """Test that demonstrates the fix."""
     print("=== Testing get_listing_details fix ===")
@@ -46,3 +49,4 @@ async def test_final_fix():
 
 if __name__ == "__main__":
     asyncio.run(test_final_fix())
+

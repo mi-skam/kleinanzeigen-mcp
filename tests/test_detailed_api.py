@@ -5,8 +5,10 @@ import asyncio
 import json
 
 import httpx
+import pytest
 
 
+@pytest.mark.asyncio
 async def test_search_endpoint():
     """Test search endpoint with detailed logging."""
     headers = {
@@ -35,13 +37,14 @@ async def test_search_endpoint():
                 try:
                     data = response.json()
                     print(f"JSON data: {json.dumps(data, indent=2)[:1000]}...")
-                except Exception:
-                    print("Could not parse as JSON")
+                except Exception as e:
+                    print(f"Could not parse as JSON: {e}")
 
         except Exception as e:
             print(f"Error: {e}")
 
 
+@pytest.mark.asyncio
 async def test_listing_detail_endpoint():
     """Test listing detail endpoint with detailed logging."""
     headers = {
@@ -74,3 +77,4 @@ async def test_listing_detail_endpoint():
 if __name__ == "__main__":
     asyncio.run(test_search_endpoint())
     asyncio.run(test_listing_detail_endpoint())
+
