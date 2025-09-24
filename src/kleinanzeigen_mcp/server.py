@@ -121,6 +121,14 @@ async def handle_list_tools() -> list[Tool]:
                 "properties": {},
             },
         ),
+        Tool(
+            name="get_docs",
+            description="Get API documentation and available endpoints",
+            inputSchema={
+                "type": "object",
+                "properties": {},
+            },
+        ),
     ]
 
 
@@ -136,6 +144,8 @@ async def handle_call_tool(name: str, arguments: dict | None) -> list[TextConten
             return await _search_locations(arguments or {})
         elif name == "get_categories":
             return await _get_categories(arguments or {})
+        elif name == "get_docs":
+            return await _get_docs(arguments or {})
         else:
             raise ValueError(f"Unknown tool: {name}")
 
@@ -286,6 +296,22 @@ async def _get_categories(arguments: dict[str, Any]) -> list[TextContent]:
             error_msg = response.error or "Categories not found or API error"
             return [
                 TextContent(type="text", text=f"Failed to get categories: {error_msg}")
+            ]
+
+
+async def _get_docs(arguments: dict[str, Any]) -> list[TextContent]:
+    """Get API documentation and available endpoints."""
+    async with KleinanzeigenClient() as client:
+        response = await client.get_docs()
+
+        if response.success and response.data:
+            return [TextContent(type="text", text=response.data)]
+        else:
+            error_msg = response.error or "Documentation not available"
+            return [
+                TextContent(
+                    type="text", text=f"Failed to get documentation: {error_msg}"
+                )
             ]
 
 

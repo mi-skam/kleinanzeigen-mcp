@@ -90,3 +90,11 @@ class CategoriesResponse(BaseModel):
     success: bool
     data: List[Category] = []
     error: Optional[str] = None
+
+
+class DocsResponse(BaseModel):
+    """Response from docs operation."""
+
+    success: bool
+    data: Optional[str] = None
+    error: Optional[str] = None
