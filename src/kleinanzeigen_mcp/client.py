@@ -84,7 +84,9 @@ class KleinanzeigenClient:
                         location_text = ""
                         if item.get("location"):
                             loc = item["location"]
-                            location_text = f"{loc.get('city', '')}, {loc.get('state', '')}"
+                            city = loc.get('city', '')
+                            state = loc.get('state', '')
+                            location_text = f"{city}, {state}"
 
                         price_text = ""
                         if item.get("price"):
@@ -99,7 +101,8 @@ class KleinanzeigenClient:
                             seller_text = item["seller"].get("name", "")
 
                         # Convert to Kleinanzeigen URL format
-                        ad_url = f"https://www.kleinanzeigen.de/s-anzeige/{item.get('adid', '')}"
+                        adid = item.get('adid', '')
+                        ad_url = f"https://www.kleinanzeigen.de/s-anzeige/{adid}"
 
                         # Convert image URLs to ListingImage objects
                         image_objects = []
@@ -110,7 +113,11 @@ class KleinanzeigenClient:
                         # Convert shipping boolean to string
                         shipping_text = ""
                         if item.get("shipping"):
-                            shipping_text = "Versand möglich" if item["shipping"] else "Nur Abholung"
+                            shipping_text = (
+                                "Versand möglich"
+                                if item["shipping"]
+                                else "Nur Abholung"
+                            )
 
                         listing = Listing(
                             id=item.get("adid", ""),
@@ -144,7 +151,7 @@ class KleinanzeigenClient:
     async def get_listing_details(self, listing_id: str) -> ListingDetailResponse:
         """Get detailed information for a specific listing."""
         try:
-            url = f"{self.base_url}/ads/v1/kleinanzeigen/ad/{listing_id}"
+            url = f"{self.base_url}/ads/v1/kleinanzeigen/inserat?id={listing_id}"
             response = await self.client.get(url)
             response.raise_for_status()
 
@@ -172,7 +179,8 @@ class KleinanzeigenClient:
                     seller_text = item["seller"].get("name", "")
 
                 # Convert to Kleinanzeigen URL format
-                ad_url = f"https://www.kleinanzeigen.de/s-anzeige/{item.get('adid', listing_id)}"
+                adid = item.get('adid', listing_id)
+                ad_url = f"https://www.kleinanzeigen.de/s-anzeige/{adid}"
 
                 # Convert image URLs to ListingImage objects
                 image_objects = []
@@ -183,7 +191,9 @@ class KleinanzeigenClient:
                 # Convert shipping boolean to string
                 shipping_text = ""
                 if item.get("shipping"):
-                    shipping_text = "Versand möglich" if item["shipping"] else "Nur Abholung"
+                    shipping_text = (
+                        "Versand möglich" if item["shipping"] else "Nur Abholung"
+                    )
 
                 listing = Listing(
                     id=item.get("adid", listing_id),
