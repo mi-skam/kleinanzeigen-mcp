@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "kleinanzeigen": {
+      "command": "python3",
+      "args": [
+        "-m",
+        "src.kleinanzeigen_mcp.server"
+      ],
+      "cwd": "/path/to/kleinanzeigen-mcp"
+    }
+  }
+}
