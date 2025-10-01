@@ -8,6 +8,8 @@ from mcp.server.models import InitializationOptions
 from mcp.types import (
     TextContent,
     Tool,
+    Prompt,
+    PromptMessage,
 )
 
 from .client import KleinanzeigenClient
@@ -130,6 +132,89 @@ async def handle_list_tools() -> list[Tool]:
             },
         ),
     ]
+
+
+@app.list_prompts()
+async def handle_list_prompts() -> list[Prompt]:
+    """List available prompts."""
+    return [
+        Prompt(
+            name="verify_listing_availability",
+            title="Verify Listing Availability",
+            description=(
+                "System instructions for verifying that search results are still active "
+                "by checking individual listing details"
+            ),
+        ),
+        Prompt(
+            name="kleinanzeigen_assistant",
+            title="Kleinanzeigen Assistant Instructions",
+            description=(
+                "Complete system instructions for using the Kleinanzeigen MCP tools effectively"
+            ),
+        ),
+    ]
+
+
+@app.get_prompt()
+async def handle_get_prompt(name: str, arguments: dict | None) -> PromptMessage:
+    """Get a specific prompt."""
+    if name == "verify_listing_availability":
+        return PromptMessage(
+            role="user",
+            content=TextContent(
+                type="text",
+                text=(
+                    "Please follow these important instructions when helping me search for listings:\n\n"
+                    "When using the Kleinanzeigen MCP tools, many listings returned by "
+                    "`search_listings` may no longer be active. To ensure accuracy:\n\n"
+                    "1. **Always verify listings**: After using `search_listings`, use "
+                    "`get_listing_details` for each listing I'm interested in to "
+                    "verify it's still available.\n\n"
+                    "2. **Check for availability indicators**: If `get_listing_details` returns "
+                    "an error or the listing appears to be inactive, let me know that the "
+                    "listing is no longer available.\n\n"
+                    "3. **Batch verification**: For multiple listings, verify the top results "
+                    "to ensure they're still active before presenting them to me.\n\n"
+                    "This verification step is crucial because listings on Kleinanzeigen can be "
+                    "removed quickly, and the search index may contain outdated results."
+                ),
+            ),
+        )
+    elif name == "kleinanzeigen_assistant":
+        return PromptMessage(
+            role="user",
+            content=TextContent(
+                type="text",
+                text=(
+                    "I need help finding items on eBay Kleinanzeigen. "
+                    "Please follow these guidelines:\n\n"
+                    "**Available Tools:**\n"
+                    "- `search_listings`: Search for listings with various filters\n"
+                    "- `get_listing_details`: Get detailed information about a specific listing\n"
+                    "- `search_locations`: Find location IDs for cities and postal codes\n"
+                    "- `get_categories`: List all available categories\n"
+                    "- `get_docs`: Get API documentation\n\n"
+                    "**Important: Verify Listing Availability**\n"
+                    "Many listings in search results may no longer be active. Always:\n"
+                    "1. Use `get_listing_details` to verify listings before recommending them\n"
+                    "2. If a listing returns an error or appears inactive, mark it as unavailable\n"
+                    "3. Only present verified, active listings to me\n\n"
+                    "**Search Tips:**\n"
+                    "- Use location IDs from `search_locations` for more accurate radius searches\n"
+                    "- Apply price filters to narrow down results\n"
+                    "- Use category IDs from `get_categories` to filter by type\n"
+                    "- Sort by 'newest' to find recently posted items\n\n"
+                    "**Best Practices:**\n"
+                    "- Start with broad searches and refine based on my needs\n"
+                    "- Always verify top results are still available\n"
+                    "- Provide direct links to active listings\n"
+                    "- Inform me promptly if listings are no longer available"
+                ),
+            ),
+        )
+    else:
+        raise ValueError(f"Unknown prompt: {name}")
 
 
 @app.call_tool()
