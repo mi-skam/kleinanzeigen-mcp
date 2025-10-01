@@ -7,7 +7,7 @@ name = "kleinanzeigen-mcp"
 version = "0.1.0"
 description = "MCP server for eBay Kleinanzeigen API"
 authors = [{ name = "Maxime", email = "maxime@example.com" }]
-dependencies = ["mcp", "httpx", "pydantic"]
+dependencies = ["mcp", "httpx", "pydantic", "python-dotenv"]
 
 [project.optional-dependencies]
 dev = ["pytest", "pytest-asyncio", "black", "ruff"]
