@@ -1,6 +1,7 @@
 """MCP server for Kleinanzeigen API."""
 
 import asyncio
+import logging
 from typing import Any
 
 from mcp.server import NotificationOptions, Server
@@ -13,7 +14,24 @@ from mcp.types import (
 )
 
 from .client import KleinanzeigenClient
+from .constants import DESCRIPTION_PREVIEW_LENGTH, MAX_IMAGE_DISPLAY
 from .models import SearchParams
+from .utils import truncate_text
+from .validators import (
+    ValidationError,
+    validate_category,
+    validate_listing_id,
+    validate_location,
+    validate_page_count,
+    validate_price,
+    validate_query,
+    validate_radius,
+    validate_sort,
+)
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = Server("kleinanzeigen-mcp")
 
@@ -240,17 +258,34 @@ async def handle_call_tool(name: str, arguments: dict | None) -> list[TextConten
 
 async def _search_listings(arguments: dict[str, Any]) -> list[TextContent]:
     """Search for listings."""
-    params = SearchParams(
-        query=arguments.get("query"),
-        location=arguments.get("location"),
-        location_id=arguments.get("location_id"),
-        radius=arguments.get("radius"),
-        min_price=arguments.get("min_price"),
-        max_price=arguments.get("max_price"),
-        sort=arguments.get("sort", "newest"),
-        category=arguments.get("category"),
-        page_count=arguments.get("page_count", 1),
-    )
+    try:
+        # Validate inputs
+        query = validate_query(arguments.get("query"))
+        location = validate_location(arguments.get("location"))
+        min_price = validate_price(arguments.get("min_price"), "min_price")
+        max_price = validate_price(arguments.get("max_price"), "max_price")
+        radius = validate_radius(arguments.get("radius"))
+        sort = validate_sort(arguments.get("sort"))
+        category = validate_category(arguments.get("category"))
+        page_count = validate_page_count(arguments.get("page_count"))
+
+        # Validate price range
+        if min_price is not None and max_price is not None and min_price > max_price:
+            raise ValidationError("min_price cannot be greater than max_price")
+
+        params = SearchParams(
+            query=query,
+            location=location,
+            location_id=arguments.get("location_id"),
+            radius=radius,
+            min_price=min_price,
+            max_price=max_price,
+            sort=sort,
+            category=category,
+            page_count=page_count,
+        )
+    except ValidationError as e:
+        return [TextContent(type="text", text=f"Validation error: {str(e)}")]
 
     async with KleinanzeigenClient() as client:
         response = await client.search_listings(params)
@@ -270,12 +305,7 @@ async def _search_listings(arguments: dict[str, Any]) -> list[TextContent]:
                 result_text += f"   **🔗 View on Kleinanzeigen**: {listing.url}\n"
                 result_text += f"   ID: {listing.id}\n"
                 if listing.description:
-                    # Truncate long descriptions
-                    desc = (
-                        listing.description[:200] + "..."
-                        if len(listing.description) > 200
-                        else listing.description
-                    )
+                    desc = truncate_text(listing.description, DESCRIPTION_PREVIEW_LENGTH)
                     result_text += f"   Description: {desc}\n"
                 result_text += "\n"
 
@@ -293,7 +323,12 @@ async def _get_listing_details(arguments: dict[str, Any]) -> list[TextContent]:
     """Get listing details."""
     listing_id = arguments.get("listing_id")
     if not listing_id:
-        raise ValueError("listing_id is required")
+        return [TextContent(type="text", text="Error: listing_id is required")]
+
+    try:
+        listing_id = validate_listing_id(listing_id)
+    except ValidationError as e:
+        return [TextContent(type="text", text=f"Validation error: {str(e)}")]
 
     async with KleinanzeigenClient() as client:
         response = await client.get_listing_details(listing_id)
@@ -321,7 +356,7 @@ async def _get_listing_details(arguments: dict[str, Any]) -> list[TextContent]:
 
             if listing.images:
                 result_text += f"**Images:** {len(listing.images)} image(s)\n"
-                for img in listing.images[:5]:  # Show max 5 images
+                for img in listing.images[:MAX_IMAGE_DISPLAY]:
                     result_text += f"- {img.url}\n"
 
             return [TextContent(type="text", text=result_text)]
