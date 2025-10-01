@@ -400,8 +400,8 @@ async def _get_docs(arguments: dict[str, Any]) -> list[TextContent]:
             ]
 
 
-async def main():
-    """Run the MCP server."""
+async def amain():
+    """Run the MCP server asynchronously."""
     from mcp.server.stdio import stdio_server
 
     async with stdio_server() as (read_stream, write_stream):
@@ -419,5 +419,10 @@ async def main():
         )
 
 
+def main():
+    """Run the MCP server (synchronous wrapper)."""
+    asyncio.run(amain())
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

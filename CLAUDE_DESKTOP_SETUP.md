@@ -1,27 +1,17 @@
 # Claude Desktop Setup for Kleinanzeigen MCP
 
+## Installation
+
+First, install the package using uv:
+
+```bash
+cd /path/to/kleinanzeigen-mcp
+uv pip install -e .
+```
+
 ## Configuration
 
 Add the following to your Claude Desktop configuration file:
-
-### Option 1: Using Python directly
-
-```json
-{
-  "mcpServers": {
-    "kleinanzeigen": {
-      "command": "python3",
-      "args": [
-        "-m",
-        "src.kleinanzeigen_mcp.server"
-      ],
-      "cwd": "/path/to/kleinanzeigen-mcp"
-    }
-  }
-}
-```
-
-### Option 2: Using UV (if installed)
 
 ```json
 {
@@ -30,9 +20,7 @@ Add the following to your Claude Desktop configuration file:
       "command": "uv",
       "args": [
         "run",
-        "python3",
-        "-m",
-        "src.kleinanzeigen_mcp.server"
+        "kleinanzeigen-mcp"
       ],
       "cwd": "/path/to/kleinanzeigen-mcp"
     }
@@ -79,9 +67,14 @@ If the server doesn't connect:
 3. **Test the server manually**:
    ```bash
    cd /path/to/kleinanzeigen-mcp
-   python3 -m src.kleinanzeigen_mcp.server
+   uv run kleinanzeigen-mcp
    ```
    The server should start and wait for input (this is normal).
+
+   You can also run it directly with Python:
+   ```bash
+   python -m kleinanzeigen_mcp
+   ```
 
 4. **Check Claude Desktop logs** for any error messages
 
