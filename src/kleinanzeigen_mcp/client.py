@@ -1,11 +1,14 @@
 """HTTP client for Kleinanzeigen API."""
 
+import asyncio
+import logging
 from typing import Optional
 from urllib.parse import urlencode
 
 import httpx
 
 from .config import config
+from .constants import API_MAX_LIMIT, DEFAULT_LIMIT, MAX_IMAGE_DISPLAY, MAX_RETRIES, RETRY_DELAY
 from .models import (
     CategoriesResponse,
     Category,
@@ -17,6 +20,10 @@ from .models import (
     SearchParams,
     SearchResponse,
 )
+from .rate_limiter import rate_limiter
+from .utils import parse_listing_from_api
+
+logger = logging.getLogger(__name__)
 
 
 class KleinanzeigenClient:
@@ -28,8 +35,7 @@ class KleinanzeigenClient:
         headers = {
             "ads_key": config.api_key,
             "Content-Type": "application/json",
-            "Origin": "https://kleinanzeigen-agent.de",
-            "User-Agent": "Mozilla/5.0 (compatible; KleinanzeigenMCP/1.0)",
+            "User-Agent": "KleinanzeigenMCP/1.0",
         }
         self.client = httpx.AsyncClient(
             timeout=config.timeout, follow_redirects=True, headers=headers
@@ -43,6 +49,57 @@ class KleinanzeigenClient:
         """Async context manager exit."""
         await self.client.aclose()
 
+    async def _make_request_with_retry(self, method: str, url: str, **kwargs) -> httpx.Response:
+        """Make HTTP request with retry logic and rate limiting.
+
+        Args:
+            method: HTTP method (GET, POST, etc.)
+            url: URL to request
+            **kwargs: Additional arguments for httpx request
+
+        Returns:
+            HTTP response
+
+        Raises:
+            httpx.HTTPError: If all retries fail
+        """
+        last_exception = None
+
+        for attempt in range(MAX_RETRIES):
+            try:
+                # Apply rate limiting
+                if not await rate_limiter.acquire(timeout=config.timeout):
+                    raise httpx.TimeoutException("Rate limit timeout")
+
+                # Make the request
+                response = await self.client.request(method, url, **kwargs)
+                response.raise_for_status()
+                return response
+
+            except httpx.HTTPStatusError as e:
+                # Don't retry client errors (4xx)
+                if 400 <= e.response.status_code < 500:
+                    raise
+                last_exception = e
+                logger.warning(f"HTTP {e.response.status_code} on attempt {attempt + 1}/{MAX_RETRIES}")
+
+            except (httpx.TimeoutException, httpx.ConnectError) as e:
+                last_exception = e
+                logger.warning(f"Connection error on attempt {attempt + 1}/{MAX_RETRIES}: {e}")
+
+            except Exception as e:
+                last_exception = e
+                logger.error(f"Unexpected error on attempt {attempt + 1}/{MAX_RETRIES}: {e}")
+
+            # Wait before retrying (exponential backoff)
+            if attempt < MAX_RETRIES - 1:
+                wait_time = RETRY_DELAY * (2 ** attempt)
+                logger.info(f"Retrying in {wait_time} seconds...")
+                await asyncio.sleep(wait_time)
+
+        # All retries failed
+        raise last_exception or httpx.HTTPError("All retry attempts failed")
+
     async def search_listings(self, params: SearchParams) -> SearchResponse:
         """Search for listings with given parameters."""
         try:
@@ -52,13 +109,12 @@ class KleinanzeigenClient:
                 query_params["query"] = params.query
 
             # Set limit based on page_count and max_results_per_page
-            # API has a maximum limit of 10
-            limit = min(10, config.max_results_per_page)
+            limit = min(API_MAX_LIMIT, config.max_results_per_page)
             if params.page_count:
                 limit = min(
-                    10,  # API maximum
-                    params.page_count * 10,  # Respect API limit per page
-                    config.max_pages * 10,
+                    API_MAX_LIMIT,
+                    params.page_count * API_MAX_LIMIT,
+                    config.max_pages * API_MAX_LIMIT,
                 )
             query_params["limit"] = str(limit)
 
@@ -90,8 +146,7 @@ class KleinanzeigenClient:
             if query_params:
                 url += f"?{urlencode(query_params)}"
 
-            response = await self.client.get(url)
-            response.raise_for_status()
+            response = await self._make_request_with_retry("GET", url)
 
             data = response.json()
 
@@ -100,60 +155,10 @@ class KleinanzeigenClient:
             if data.get("success") and data.get("data") and data["data"].get("ads"):
                 for i, item in enumerate(data["data"]["ads"]):
                     try:
-                        # Map API response fields to our model
-                        location_text = ""
-                        if item.get("location"):
-                            loc = item["location"]
-                            city = loc.get("city", "")
-                            state = loc.get("state", "")
-                            location_text = f"{city}, {state}"
-
-                        price_text = ""
-                        if item.get("price"):
-                            price_val = item["price"]
-                            if price_val == "0" or price_val == 0:
-                                price_text = "Auf Anfrage"
-                            else:
-                                price_text = f"€ {price_val}"
-
-                        seller_text = ""
-                        if item.get("seller"):
-                            seller_text = item["seller"].get("name", "")
-
-                        # Convert to Kleinanzeigen URL format
-                        adid = item.get("adid", "")
-                        ad_url = f"https://www.kleinanzeigen.de/s-anzeige/{adid}"
-
-                        # Convert image URLs to ListingImage objects
-                        image_objects = []
-                        for img_url in item.get("images", []):
-                            from .models import ListingImage
-
-                            image_objects.append(ListingImage(url=img_url))
-
-                        # Convert shipping boolean to string
-                        shipping_text = ""
-                        if item.get("shipping"):
-                            shipping_text = (
-                                "Versand möglich"
-                                if item["shipping"]
-                                else "Nur Abholung"
-                            )
-                        listing = Listing(
-                            id=item.get("adid", ""),
-                            title=item.get("title", ""),
-                            price=price_text,
-                            location=location_text,
-                            date=item.get("upload_date"),
-                            url=ad_url,
-                            description=item.get("description"),
-                            images=image_objects,
-                            seller=seller_text,
-                            shipping=shipping_text,
-                        )
+                        listing = parse_listing_from_api(item)
                         listings.append(listing)
                     except Exception as e:
-                        print(f"Error processing item {i}: {e}")
+                        logger.warning(f"Error processing item {i}: {e}")
                         # Skip failed items instead of breaking the whole search
 
             return SearchResponse(
@@ -163,72 +168,24 @@ class KleinanzeigenClient:
                 page=1,
             )
 
-        except httpx.HTTPError:
+        except httpx.HTTPError as e:
+            logger.error(f"HTTP error during search: {e}")
             return SearchResponse(success=False, data=[], total_results=0, page=1)
-        except Exception:
+        except Exception as e:
+            logger.error(f"Unexpected error during search: {e}", exc_info=True)
             return SearchResponse(success=False, data=[], total_results=0, page=1)
 
     async def get_listing_details(self, listing_id: str) -> ListingDetailResponse:
         """Get detailed information for a specific listing."""
         try:
             url = f"{self.base_url}/ads/v1/kleinanzeigen/inserat?id={listing_id}"
-            response = await self.client.get(url)
-            response.raise_for_status()
+            response = await self._make_request_with_retry("GET", url)
 
             data = response.json()
 
             if data.get("success") and data.get("data"):
                 item = data["data"]
-
-                # Map API response fields to our model
-                location_text = ""
-                if item.get("location"):
-                    loc = item["location"]
-                    location_text = f"{loc.get('city', '')}, {loc.get('state', '')}"
-
-                price_text = ""
-                if item.get("price"):
-                    price_val = item["price"]
-                    if price_val == "0" or price_val == 0:
-                        price_text = "Auf Anfrage"
-                    else:
-                        price_text = f"€ {price_val}"
-
-                seller_text = ""
-                if item.get("seller"):
-                    seller_text = item["seller"].get("name", "")
-
-                # Convert to Kleinanzeigen URL format
-                adid = item.get("adid", listing_id)
-                ad_url = f"https://www.kleinanzeigen.de/s-anzeige/{adid}"
-
-                # Convert image URLs to ListingImage objects
-                image_objects = []
-                for img_url in item.get("images", []):
-                    from .models import ListingImage
-
-                    image_objects.append(ListingImage(url=img_url))
-
-                # Convert shipping boolean to string
-                shipping_text = ""
-                if item.get("shipping"):
-                    shipping_text = (
-                        "Versand möglich" if item["shipping"] else "Nur Abholung"
-                    )
-
-                listing = Listing(
-                    id=item.get("adid", listing_id),
-                    title=item.get("title", ""),
-                    price=price_text,
-                    location=location_text,
-                    date=item.get("upload_date"),
-                    url=ad_url,
-                    description=item.get("description"),
-                    images=image_objects,
-                    seller=seller_text,
-                    shipping=shipping_text,
-                )
-
+                listing = parse_listing_from_api(item, listing_id)
                 return ListingDetailResponse(success=True, data=listing)
             else:
                 return ListingDetailResponse(
@@ -255,8 +212,7 @@ class KleinanzeigenClient:
             if query_params:
                 url += f"?{urlencode(query_params)}"
 
-            response = await self.client.get(url)
-            response.raise_for_status()
+            response = await self._make_request_with_retry("GET", url)
 
             data = response.json()
 
@@ -277,7 +233,7 @@ class KleinanzeigenClient:
                         )
                         locations.append(location)
                     except (ValueError, TypeError) as e:
-                        print(f"Error processing location item: {e}")
+                        logger.warning(f"Error processing location item: {e}")
 
             return LocationsResponse(
                 success=data.get("success", False),
@@ -293,8 +249,7 @@ class KleinanzeigenClient:
         """Get all available categories."""
         try:
             url = f"{self.base_url}/ads/v1/kleinanzeigen/categories"
-            response = await self.client.get(url)
-            response.raise_for_status()
+            response = await self._make_request_with_retry("GET", url)
 
             data = response.json()
 
@@ -323,8 +278,7 @@ class KleinanzeigenClient:
         """Get API documentation and available endpoints."""
         try:
             url = f"{self.base_url}/docs"
-            response = await self.client.get(url)
-            response.raise_for_status()
+            response = await self._make_request_with_retry("GET", url)
 
             data = response.json()
 
