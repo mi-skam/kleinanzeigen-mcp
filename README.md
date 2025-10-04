@@ -50,8 +50,8 @@ Add to your MCP client configuration:
 {
   "mcpServers": {
     "kleinanzeigen": {
-      "command": "/path/to/.venv/bin/python",
-      "args": ["-m", "kleinanzeigen_mcp.server"],
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/kleinanzeigen-mcp", "kleinanzeigen-mcp"],
       "env": {
         "KLEINANZEIGEN_API_URL": "https://api.kleinanzeigen-agent.de",
         "KLEINANZEIGEN_API_KEY": "YOUR-KEY"
